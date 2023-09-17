@@ -1,12 +1,11 @@
 mod post_processor;
 
-use face_prediction::{image_processor::UltraImage, ultra_predictor::UltraPredictor, Config};
+use face_prediction::{process_folder, ultra_predictor::UltraPredictor, Config};
 use ort::OrtError;
 use std::{
     env,
-    error::Error,
-    fs::{self, File},
-    path::{Path, PathBuf},
+    fs::{self},
+    path::Path,
     process,
     time::Instant,
 };
@@ -33,55 +32,8 @@ fn main() -> Result<(), OrtError> {
     fs::create_dir(&image_output_folder)
         .unwrap_or_else(|err| println!("Unabel to create output dir: {}", err.to_string()));
 
-    process_directory(&folder_path, &predictor, &image_output_folder)
+    process_folder(&folder_path, &predictor, &image_output_folder)
         .unwrap_or_else(|err| println!("Problem processing folder: {:?}", err.to_string()));
 
     return Ok(());
-}
-
-fn process_directory(
-    dir_path: &Path,
-    predictor: &UltraPredictor,
-    image_output_folder: &Path,
-) -> Result<(), Box<dyn Error>> {
-    for entry in fs::read_dir(dir_path)? {
-        let entry = entry?.path();
-        if entry.is_file() {
-            process_file(&entry, &predictor, &image_output_folder)?;
-        } else {
-            process_directory(&entry, &predictor, &image_output_folder)?;
-        }
-    }
-    Ok(())
-}
-
-fn process_file(
-    image_path: &PathBuf,
-    predictor: &UltraPredictor,
-    image_output_folder: &Path,
-) -> Result<(), Box<dyn Error>> {
-    println!(
-        "\nProcessing file: {:?}",
-        fs::canonicalize(image_path).expect("")
-    );
-    let mut start = Instant::now();
-    let mut image = UltraImage::new(&image_path).unwrap_or_else(|err| {
-        println!("Error when trying to open image: {}", err.to_string());
-        process::exit(4);
-    });
-    println!("Image initialization took {:?}", start.elapsed());
-
-    start = Instant::now();
-    let output = predictor.run(&image.image)?;
-    println!("Preprocessing and inference took {:?}", start.elapsed());
-
-    start = Instant::now();
-    image
-        .draw_bboxes(output.bbox_with_confidences, &image_output_folder)
-        .unwrap_or_else(|err| {
-            println!("Error when trying to draw to image: {}", err.to_string());
-            process::exit(1);
-        });
-    println!("Drawing bboxes and to file took {:?}", start.elapsed());
-    Ok(())
 }
