@@ -5,7 +5,7 @@ use ort::OrtError;
 use std::{
     env,
     error::Error,
-    fs,
+    fs::{self, File},
     path::{Path, PathBuf},
     process,
     time::Instant,
@@ -29,6 +29,9 @@ fn main() -> Result<(), OrtError> {
         process::exit(1)
     });
     println!("Prediction startup took {:?}", start.elapsed());
+
+    fs::create_dir(&image_output_folder)
+        .unwrap_or_else(|err| println!("Unabel to create output dir: {}", err.to_string()));
 
     process_directory(&folder_path, &predictor, &image_output_folder)
         .unwrap_or_else(|err| println!("Problem processing folder: {:?}", err.to_string()));
