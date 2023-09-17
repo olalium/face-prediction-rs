@@ -1,0 +1,5 @@
+/target
+
+/models/*
+/test_folder/*
+/results/*
