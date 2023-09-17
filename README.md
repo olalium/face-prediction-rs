@@ -1,5 +1,5 @@
 # face-prediction-rs
-Face prediction using rust ORT library and the UltraFace model. Iterates input folder and draws bounding boxes on all images within file
+Face prediction CLI using rust ORT library and the UltraFace model. Iterates input folder and draws bounding boxes on all images within file
 
 # Setup
 1. download the [Ultra face](https://github.com/onnx/models/tree/main/vision/body_analysis/ultraface) 640 onnx model and put it in `[model_path]`
