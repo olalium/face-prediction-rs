@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{path::Path, time::Instant};
 
 use image::RgbImage;
 use ndarray::{Array4, CowArray, IxDyn};
@@ -18,6 +18,8 @@ pub static ULTRA_PREDICTOR_NAME: &str = "UltraPredictor";
 
 impl UltraPredictor {
     pub fn new(model_filepath: &Path, num_threads: i16) -> Result<UltraPredictor, OrtError> {
+        let start = Instant::now();
+
         let environment = Environment::builder()
             .with_name(ULTRA_PREDICTOR_NAME.to_string())
             .with_execution_providers([ExecutionProvider::CPU(Default::default())])
@@ -30,6 +32,7 @@ impl UltraPredictor {
             .with_intra_threads(num_threads)?
             .with_model_from_file(&model_filepath)?;
 
+        println!("Prediction startup took {:?}", start.elapsed());
         Ok(UltraPredictor {
             name: ULTRA_PREDICTOR_NAME.to_string(),
             session,
@@ -37,10 +40,14 @@ impl UltraPredictor {
     }
 
     pub fn run(&self, image: &RgbImage) -> Result<UltraOutput, OrtError> {
+        let start = Instant::now();
+
         let image_tensor = self.get_image_tensor(&image);
         let image_input = self.get_image_input(&image_tensor)?;
         let raw_outputs = self.session.run(image_input)?;
         let ultra_output = UltraOutput::new(raw_outputs)?;
+
+        println!("Preprocessing and inference took {:?}", start.elapsed());
         Ok(ultra_output)
     }
 

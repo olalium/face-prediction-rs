@@ -1,6 +1,7 @@
 use std::{
     fs::File,
     path::{Path, PathBuf},
+    time::Instant,
 };
 
 use image::{imageops::FilterType, ImageError, ImageFormat, Rgb, RgbImage};
@@ -15,10 +16,18 @@ pub struct UltraImage<'a> {
 
 impl UltraImage<'_> {
     pub fn new(path: &Path) -> Result<UltraImage, ImageError> {
-        let raw_image = image::open(&path)?;
+        let start = Instant::now();
+
+        let raw_image = image::open(path)?;
         let image = raw_image
             .resize_to_fill(640, 480, FilterType::Triangle)
             .to_rgb8();
+
+        println!(
+            "Image initialization of {:?} took {:?}",
+            &path,
+            start.elapsed()
+        );
 
         return Ok(UltraImage {
             image,
@@ -31,6 +40,7 @@ impl UltraImage<'_> {
         bbox_with_confidences: UltraResult,
         output_folder: &Path,
     ) -> Result<(), ImageError> {
+        let start = Instant::now();
         self.image = draw_bboxes_on_image(self.image.clone(), bbox_with_confidences, 640, 480);
 
         let mut output_path = PathBuf::from(output_folder);
@@ -45,7 +55,9 @@ impl UltraImage<'_> {
             480,
             image::ColorType::Rgb8,
             ImageFormat::Jpeg,
-        )
+        )?;
+        println!("Drawing bboxes and to file took {:?}", start.elapsed());
+        Ok(())
     }
 }
 
