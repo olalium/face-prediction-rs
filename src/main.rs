@@ -35,5 +35,6 @@ fn main() -> Result<(), OrtError> {
     process_folder(&folder_path, &predictor, &image_output_folder)
         .unwrap_or_else(|err| println!("Problem processing folder: {:?}", err.to_string()));
 
+    println!("\nTotal time elapsed: {:?}", start.elapsed());
     return Ok(());
 }
