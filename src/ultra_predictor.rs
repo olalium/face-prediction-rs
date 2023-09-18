@@ -32,7 +32,11 @@ impl UltraPredictor {
             .with_intra_threads(num_threads)?
             .with_model_from_file(&model_filepath)?;
 
-        println!("Prediction startup took {:?}", start.elapsed());
+        println!(
+            "{} startup took {:?}",
+            ULTRA_PREDICTOR_NAME,
+            start.elapsed()
+        );
         Ok(UltraPredictor {
             name: ULTRA_PREDICTOR_NAME.to_string(),
             session,
@@ -47,7 +51,11 @@ impl UltraPredictor {
         let raw_outputs = self.session.run(image_input)?;
         let ultra_output = UltraOutput::new(raw_outputs)?;
 
-        println!("Preprocessing and inference took {:?}", start.elapsed());
+        println!(
+            "{} preprocessing and inference took {:?}",
+            ULTRA_PREDICTOR_NAME,
+            start.elapsed()
+        );
         Ok(ultra_output)
     }
 
