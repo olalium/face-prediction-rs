@@ -29,7 +29,7 @@ fn main() -> Result<(), OrtError> {
     let arc_face_model_path = Path::new(&config.arc_model_path);
     let folder_path = Path::new(&config.folder_path);
     let image_output_folder = Path::new(&config.result_folder);
-    let compare_path = Path::new(&config.compare_path);
+    let test_case_path = Path::new(&config.test_case_path);
 
     let ultra_predictor =
         UltraPredictor::new(ultra_model_path, SESSION_THREADS).unwrap_or_else(|ort_err| {
@@ -66,7 +66,7 @@ fn main() -> Result<(), OrtError> {
     );
 
     let (_, compare_embeddings) =
-        process_file_path(&compare_path, &ultra_predictor, &face_arc_predictor).unwrap_or_else(
+        process_file_path(&test_case_path, &ultra_predictor, &face_arc_predictor).unwrap_or_else(
             |err| {
                 println!(
                     "Problem getting files from compare image: {:?}",
