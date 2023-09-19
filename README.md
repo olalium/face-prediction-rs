@@ -1,5 +1,5 @@
 # face-prediction-rs
-Face prediction CLI using rust ORT library and the UltraFace model. Iterates image folder `[image_folder]` and compares faces found to `[test_case_path]`
+Face prediction CLI using rust ORT library, Ultraface and Arcface. Iterates image folder `[image_folder]` and compares faces found to `[test_case_path]`.
 
 # Setup
 1. download the [Ultra face](https://github.com/onnx/models/tree/main/vision/body_analysis/ultraface) 640 onnx model and put it in `[ultra_model_path]`
