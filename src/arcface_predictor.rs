@@ -45,13 +45,14 @@ impl ArcFacePredictor {
     pub fn run(
         &self,
         ultra_image: &RgbImage,
-        bboxes: UltraResult,
+        bboxes: &UltraResult,
     ) -> Result<Vec<ArcFaceOutput>, OrtError> {
         let start = Instant::now();
         let mut arc_face_outputs: Vec<ArcFaceOutput> = vec![];
 
         for (bbox, _) in bboxes {
-            let image = ArcFaceImage::new(ultra_image.clone(), bbox).expect("something went wrong");
+            let image =
+                ArcFaceImage::new(ultra_image.clone(), bbox.clone()).expect("something went wrong");
             let image_tensor = self.get_image_tensor(&image.image);
             let image_input = self.get_image_input(&image_tensor)?;
             let raw_outputs = self.session.run(image_input).unwrap_or_else(|err| {
@@ -72,7 +73,7 @@ impl ArcFacePredictor {
     fn get_image_tensor(&self, image: &RgbImage) -> CowArray<f32, IxDyn> {
         let image_tensor = CowArray::from(Array4::from_shape_fn(
             (1, 3, 112 as usize, 112 as usize),
-            |(_, c, y, x)| image[(x as _, y as _)][c] as f32,
+            |(_, c, y, x)| ((image[(x as _, y as _)][c] as f32 / 255.0) - 0.5) / 0.5,
         ))
         .into_dyn();
 

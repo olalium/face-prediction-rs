@@ -1,5 +1,3 @@
-use std::time::Instant;
-
 use image::{
     imageops::{crop_imm, FilterType},
     DynamicImage, ImageError, RgbImage,

@@ -5,8 +5,8 @@ use std::{
 };
 
 use arcface_predictor::ArcFacePredictor;
-use ndarray::Array;
-use post_processor::ArcFaceOutput;
+use ndarray::{Array, Array1};
+use post_processor::{ArcFaceOutput, UltraOutput};
 use ultra_image::UltraImage;
 use ultra_predictor::UltraPredictor;
 
@@ -14,37 +14,24 @@ use rayon::prelude::*;
 
 pub mod arcface_image;
 pub mod arcface_predictor;
+pub mod config;
 pub mod post_processor;
 pub mod ultra_image;
 pub mod ultra_predictor;
 
-pub struct Config {
-    pub ultra_model_path: String,
-    pub arc_model_path: String,
-    pub folder_path: String,
-    pub result_folder: String,
-}
+static CHUNK_SIZE: usize = 10;
 
-const CHUNK_SIZE: usize = 10;
-
-impl Config {
-    pub fn new(args: &[String]) -> Result<Config, &str> {
-        if args.len() < 5 {
-            return Err("Not enough arguments");
-        }
-
-        let ultra_model_path = args[1].clone();
-        let arc_model_path = args[2].clone();
-        let folder_path = args[3].clone();
-        let result_folder = args[4].clone();
-
-        Ok(Config {
-            ultra_model_path,
-            arc_model_path,
-            folder_path,
-            result_folder,
-        })
-    }
+pub fn process_file_path<'a>(
+    file_path: &'a Path,
+    ultra_predictor: &UltraPredictor,
+    arc_predictor: &ArcFacePredictor,
+) -> Result<(&'a Path, Vec<f32>), Box<dyn Error>> {
+    let ultra_image = UltraImage::new(file_path)?;
+    let ultra_output = &ultra_predictor.run(&ultra_image.image)?;
+    let arc_face_output =
+        &arc_predictor.run(&ultra_image.image, &ultra_output.bbox_with_confidences)?;
+    let normalized_embedding = normalize_embedding(arc_face_output[0].embedding.clone());
+    Ok((&ultra_image.image_path, normalized_embedding))
 }
 
 pub fn get_file_paths_from_folder(dir_path: &Path) -> Result<Vec<PathBuf>, Box<dyn Error>> {
@@ -60,20 +47,30 @@ pub fn get_file_paths_from_folder(dir_path: &Path) -> Result<Vec<PathBuf>, Box<d
     return Ok(file_paths);
 }
 
-pub fn process_file_paths(
-    file_paths: &Vec<PathBuf>,
-    predictor: &UltraPredictor,
-    image_output_folder: &Path,
-    arc_predictor: &ArcFacePredictor,
-) -> Result<(), Box<dyn Error>> {
+pub fn process_file_paths<'a>(
+    file_paths: &'a Vec<PathBuf>,
+    ultra_predictor: &'a UltraPredictor,
+    // image_output_folder: &Path,
+    arc_predictor: &'a ArcFacePredictor,
+) -> Vec<(&'a Path, Vec<Vec<f32>>)> {
+    let mut images_with_embedding_result: Vec<(&Path, Vec<Vec<f32>>)> = vec![];
     for file_paths in file_paths.chunks(CHUNK_SIZE) {
-        let images = par_get_images(file_paths);
-        process_images(images, &predictor, &image_output_folder, &arc_predictor);
+        let images = par_get_ultra_images(file_paths);
+        let ultra_outputs = run_ultra_prediciton(&images, &ultra_predictor);
+        let images_with_arc_face_outputs =
+            run_arc_face_prediction(ultra_outputs, images, &arc_predictor);
+        let images_with_embeddings = calculate_embeddings(images_with_arc_face_outputs);
+        images_with_embedding_result.extend(images_with_embeddings)
+        // draw_boxes(
+        //     images,
+        //     &ultra_predictor,
+        //     &image_output_folder,
+        // );
     }
-    Ok(())
+    return images_with_embedding_result;
 }
 
-fn par_get_images(file_paths: &[PathBuf]) -> Vec<UltraImage> {
+fn par_get_ultra_images(file_paths: &[PathBuf]) -> Vec<UltraImage> {
     file_paths
         .into_par_iter()
         .filter_map(|file_path| match UltraImage::new(file_path) {
@@ -90,53 +87,111 @@ fn par_get_images(file_paths: &[PathBuf]) -> Vec<UltraImage> {
         .collect()
 }
 
-//TODO my man
-fn process_images(
-    images: Vec<UltraImage>,
+fn run_ultra_prediciton(
+    ultra_images: &Vec<UltraImage>,
     predictor: &UltraPredictor,
-    image_output_folder: &Path,
-    arc_predictor: &ArcFacePredictor,
-) {
-    let mut output_vec: Vec<ArcFaceOutput> = vec![];
-    images.into_iter().for_each(|mut image| {
-        let arc_output =
-            process_image(&mut image, &predictor, &image_output_folder, &arc_predictor).unwrap();
-        output_vec.extend(arc_output);
-    });
-
-    let mut embeddings: Vec<Vec<f32>> = vec![];
-    for output in output_vec {
-        embeddings.push(output.embedding);
-    }
-
-    for embedding in embeddings.clone() {
-        let mut vec0 = Array::from(embedding);
-        let norm_vec0 = (vec0.mapv(|x| x * x).sum()).sqrt();
-        vec0 /= norm_vec0;
-        embeddings.as_slice().iter().for_each(|in_embedding| {
-            let mut vec1 = Array::from(in_embedding.clone());
-            let norm_vec1 = (vec1.mapv(|x| x * x).sum()).sqrt();
-            vec1 /= norm_vec1;
-
-            let vecx = (vec0.clone() - vec1).mapv(|v| v * v).sum();
-            println!("ditance: {:#?}", vecx);
-        });
-    }
+) -> Vec<UltraOutput> {
+    ultra_images
+        .into_iter()
+        .filter_map(|ultra_image| {
+            let ultra_output = predictor.run(&ultra_image.image);
+            match ultra_output {
+                Ok(ultra_output) => Some(ultra_output),
+                Err(error) => {
+                    println!("Unable to get run result because of {}", error.to_string());
+                    return None;
+                }
+            }
+        })
+        .collect()
 }
 
-fn process_image(
-    image: &mut UltraImage,
-    predictor: &UltraPredictor,
-    image_output_folder: &Path,
-    arc_predictor: &ArcFacePredictor,
-) -> Result<Vec<ArcFaceOutput>, Box<dyn Error>> {
-    let output = predictor.run(&image.image)?;
-    let embeddings = arc_predictor.run(&image.image, output.bbox_with_confidences)?;
-    // image
-    //     .draw_bboxes(output.bbox_with_confidences, image_output_folder)
-    //     .unwrap_or_else(|err| {
-    //         println!("Error when trying to draw to image: {}", err.to_string());
-    //         process::exit(1);
-    //     });
-    Ok(embeddings)
+fn run_arc_face_prediction<'a>(
+    ultra_outputs: Vec<UltraOutput>,
+    images: Vec<UltraImage<'a>>,
+    predictor: &ArcFacePredictor,
+) -> Vec<(UltraImage<'a>, Vec<ArcFaceOutput>)> {
+    images
+        .into_iter()
+        .zip(ultra_outputs.into_iter())
+        .filter_map(|(image, ultra_output)| {
+            let arc_output = predictor.run(&image.image, &ultra_output.bbox_with_confidences);
+            match arc_output {
+                Ok(arc_output) => Some((image, arc_output)),
+                Err(error) => {
+                    println!("Unable to get run result because of {}", error.to_string());
+                    return None;
+                }
+            }
+        })
+        .collect()
 }
+
+fn calculate_embeddings<'a>(
+    images_with_arc_face_outputs: Vec<(UltraImage<'a>, Vec<ArcFaceOutput>)>,
+) -> Vec<(&Path, Vec<Vec<f32>>)> {
+    images_with_arc_face_outputs
+        .into_iter()
+        .map(|(image, arc_face_outputs)| {
+            let embeddings: Vec<Vec<f32>> = arc_face_outputs
+                .into_iter()
+                .map(|output| normalize_embedding(output.embedding))
+                .collect();
+            (image.image_path, embeddings)
+        })
+        .collect()
+}
+
+fn normalize_embedding(embedding: Vec<f32>) -> Vec<f32> {
+    let embedding = Array::from(embedding);
+    let l2_norm = f32::sqrt(embedding.mapv(|v| v * v).sum());
+    let normalized_embedding = embedding.mapv(|v| v / l2_norm);
+    normalized_embedding.to_vec()
+}
+
+pub fn calculate_distances(
+    compare_embeddings: Vec<f32>,
+    images_with_embeddings: Vec<(&Path, Vec<Vec<f32>>)>,
+) -> Vec<(String, f32)> {
+    let mut path_with_dist: Vec<(String, f32)> = vec![];
+    let compare_embeddings_arr = Array::from(compare_embeddings);
+
+    for (image_path, image_embeddings) in images_with_embeddings {
+        let readable_path = image_path
+            .to_path_buf()
+            .into_os_string()
+            .into_string()
+            .unwrap();
+        let mut lowest_dist: f32 = 100.0;
+
+        for image_embedding in image_embeddings {
+            let image_embedding_arr = Array::from(image_embedding);
+            let dist = calculate_distance(image_embedding_arr, compare_embeddings_arr.clone());
+            if dist < lowest_dist {
+                lowest_dist = dist;
+            }
+        }
+        path_with_dist.push((readable_path, lowest_dist))
+    }
+    return path_with_dist;
+}
+
+fn calculate_distance(arr_a: Array1<f32>, arr_b: Array1<f32>) -> f32 {
+    let sub_res = &arr_a - &arr_b;
+    let sqr_res = sub_res.mapv(|v| v * v);
+    return sqr_res.sum();
+}
+// fn draw_boxes(
+//     image: &mut UltraImage,
+//     predictor: &UltraPredictor,
+//     image_output_folder: &Path,
+// ) -> Result<(), Box<dyn Error>> {
+//     let output = predictor.run(&image.image)?;
+//     image
+//         .draw_bboxes(output.bbox_with_confidences, image_output_folder)
+//         .unwrap_or_else(|err| {
+//             println!("Error when trying to draw to image: {}", err.to_string());
+//             process::exit(1);
+//         });
+//     Ok(())
+// }

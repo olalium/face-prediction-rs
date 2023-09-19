@@ -4,14 +4,15 @@ use std::{
     time::Instant,
 };
 
-use image::{imageops::FilterType, ImageError, ImageFormat, Rgb, RgbImage};
+use image::{imageops::FilterType, DynamicImage, ImageError, ImageFormat, Rgb, RgbImage};
 use imageproc::{drawing::draw_hollow_rect, rect::Rect};
 
 use crate::post_processor::UltraResult;
 
 pub struct UltraImage<'a> {
     pub image: RgbImage,
-    image_path: &'a Path,
+    pub raw_image: DynamicImage,
+    pub image_path: &'a Path,
 }
 
 impl UltraImage<'_> {
@@ -30,6 +31,7 @@ impl UltraImage<'_> {
         );
 
         return Ok(UltraImage {
+            raw_image,
             image,
             image_path: path,
         });
