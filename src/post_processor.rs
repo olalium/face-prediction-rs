@@ -6,7 +6,7 @@ pub type UltraResult = Vec<(Bbox, f32)>;
 
 /// Positive additive constant to avoid divide-by-zero.
 const EPS: f32 = 1.0e-7;
-static CONFIDENCE_THRESHOLD: f32 = 0.8;
+static CONFIDENCE_THRESHOLD: f32 = 0.7;
 
 pub struct UltraOutput {
     pub bbox_with_confidences: UltraResult,

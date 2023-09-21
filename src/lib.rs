@@ -60,11 +60,9 @@ pub fn process_file_paths<'a>(
             run_arc_face_prediction(ultra_outputs, images, &arc_predictor);
         let images_with_embeddings = calculate_embeddings(images_with_arc_face_outputs);
         images_with_embedding_result.extend(images_with_embeddings)
-        // draw_boxes(
-        //     images,
-        //     &ultra_predictor,
-        //     &image_output_folder,
-        // );
+        // for mut image in images {
+        //     draw_boxes(&mut image, &ultra_predictor, &image_output_folder);
+        // }
     }
     return images_with_embedding_result;
 }
