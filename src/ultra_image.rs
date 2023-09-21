@@ -7,7 +7,10 @@ use std::{
 use image::{imageops::FilterType, DynamicImage, ImageError, ImageFormat, Rgb, RgbImage};
 use imageproc::{drawing::draw_hollow_rect, rect::Rect};
 
-use crate::post_processor::UltraResult;
+use crate::{
+    post_processor::UltraResult,
+    ultra_predictor::{ULTRA_INPUT_HEIGHT, ULTRA_INPUT_WIDTH},
+};
 
 pub struct UltraImage<'a> {
     pub image: RgbImage,
@@ -21,7 +24,11 @@ impl UltraImage<'_> {
 
         let raw_image = image::open(path)?;
         let image = raw_image
-            .resize_to_fill(640, 480, FilterType::Triangle)
+            .resize_to_fill(
+                ULTRA_INPUT_WIDTH as u32,
+                ULTRA_INPUT_HEIGHT as u32,
+                FilterType::Triangle,
+            )
             .to_rgb8();
 
         println!(
@@ -43,7 +50,12 @@ impl UltraImage<'_> {
         output_folder: &Path,
     ) -> Result<(), ImageError> {
         let start = Instant::now();
-        self.image = draw_bboxes_on_image(self.image.clone(), bbox_with_confidences, 640, 480);
+        self.image = draw_bboxes_on_image(
+            self.image.clone(),
+            bbox_with_confidences,
+            ULTRA_INPUT_WIDTH as u32,
+            ULTRA_INPUT_HEIGHT as u32,
+        );
 
         let mut output_path = PathBuf::from(output_folder);
         let file_name = PathBuf::from(&self.image_path.file_name().expect("file_name not found"));
@@ -53,8 +65,8 @@ impl UltraImage<'_> {
         image::save_buffer_with_format(
             &output_path,
             &self.image,
-            640,
-            480,
+            ULTRA_INPUT_WIDTH as u32,
+            ULTRA_INPUT_HEIGHT as u32,
             image::ColorType::Rgb8,
             ImageFormat::Jpeg,
         )?;

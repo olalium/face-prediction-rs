@@ -10,6 +10,7 @@ use ort::{
 use crate::{
     arcface_image::ArcFaceImage,
     post_processor::{ArcFaceOutput, UltraResult},
+    ultra_image::UltraImage,
 };
 
 pub struct ArcFacePredictor {
@@ -44,15 +45,15 @@ impl ArcFacePredictor {
 
     pub fn run(
         &self,
-        ultra_image: &RgbImage,
+        ultra_image: &UltraImage,
         bboxes: &UltraResult,
     ) -> Result<Vec<ArcFaceOutput>, OrtError> {
         let start = Instant::now();
         let mut arc_face_outputs: Vec<ArcFaceOutput> = vec![];
 
         for (bbox, _) in bboxes {
-            let image =
-                ArcFaceImage::new(ultra_image.clone(), bbox.clone()).expect("something went wrong");
+            let image = ArcFaceImage::new(ultra_image.raw_image.clone(), bbox.clone())
+                .expect("something went wrong");
             let image_tensor = self.get_image_tensor(&image.image);
             let image_input = self.get_image_input(&image_tensor)?;
             let raw_outputs = self.session.run(image_input).unwrap_or_else(|err| {

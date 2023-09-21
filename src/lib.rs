@@ -28,8 +28,7 @@ pub fn process_file_path<'a>(
 ) -> Result<(&'a Path, Vec<f32>), Box<dyn Error>> {
     let ultra_image = UltraImage::new(file_path)?;
     let ultra_output = &ultra_predictor.run(&ultra_image.image)?;
-    let arc_face_output =
-        &arc_predictor.run(&ultra_image.image, &ultra_output.bbox_with_confidences)?;
+    let arc_face_output = &arc_predictor.run(&ultra_image, &ultra_output.bbox_with_confidences)?;
     let normalized_embedding = normalize_embedding(arc_face_output[0].embedding.clone());
     Ok((&ultra_image.image_path, normalized_embedding))
 }
@@ -115,7 +114,7 @@ fn run_arc_face_prediction<'a>(
         .into_iter()
         .zip(ultra_outputs.into_iter())
         .filter_map(|(image, ultra_output)| {
-            let arc_output = predictor.run(&image.image, &ultra_output.bbox_with_confidences);
+            let arc_output = predictor.run(&image, &ultra_output.bbox_with_confidences);
             match arc_output {
                 Ok(arc_output) => Some((image, arc_output)),
                 Err(error) => {

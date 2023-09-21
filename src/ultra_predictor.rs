@@ -15,6 +15,8 @@ pub struct UltraPredictor {
 }
 
 pub static ULTRA_PREDICTOR_NAME: &str = "UltraPredictor";
+pub static ULTRA_INPUT_WIDTH: usize = 640;
+pub static ULTRA_INPUT_HEIGHT: usize = 480;
 
 impl UltraPredictor {
     pub fn new(model_filepath: &Path, num_threads: i16) -> Result<UltraPredictor, OrtError> {
@@ -61,7 +63,7 @@ impl UltraPredictor {
 
     fn get_image_tensor(&self, image: &RgbImage) -> CowArray<f32, IxDyn> {
         let image_tensor = CowArray::from(Array4::from_shape_fn(
-            (1, 3, 480 as usize, 640 as usize),
+            (1, 3, ULTRA_INPUT_HEIGHT, ULTRA_INPUT_WIDTH),
             |(_, c, y, x)| {
                 let mean = [0.485, 0.456, 0.406][c];
                 let std = [0.229, 0.224, 0.225][c];

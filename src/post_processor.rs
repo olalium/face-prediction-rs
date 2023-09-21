@@ -6,6 +6,7 @@ pub type UltraResult = Vec<(Bbox, f32)>;
 
 /// Positive additive constant to avoid divide-by-zero.
 const EPS: f32 = 1.0e-7;
+static CONFIDENCE_THRESHOLD: f32 = 0.8;
 
 pub struct UltraOutput {
     pub bbox_with_confidences: UltraResult,
@@ -26,7 +27,7 @@ impl UltraOutput {
             .iter()
             .zip(confidences.iter())
             .filter_map(|(bbox, confidence)| match confidence {
-                x if *x > 0.5 => Some((bbox, confidence)),
+                x if *x > CONFIDENCE_THRESHOLD => Some((bbox, confidence)),
                 _ => None,
             })
             .collect();
